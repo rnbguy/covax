@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     // musee du Louvre geo-location
     let (lat, long) = (48.864824, 2.334595);
 
-    let departments: Vec<anyhow::Result<_>> = join_all(
+    let departments: Vec<anyhow::Result<CentersInDepartment>> = join_all(
         // includes all main-land french departements
         // (1..=95)
         depts
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
             .map(|d: usize| async move {
                 let url = format!("{}{:02}.json", GITLAB, d);
                 let text = reqwest::get(&url).await?.text().await?;
-                Ok(serde_json::from_str::<CentersInDepartment>(&text)?)
+                Ok(serde_json::from_str(&text)?)
             })
             .collect::<Vec<_>>(),
     )
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         departments.iter().filter(|x| x.is_ok()).count()
     );
 
-    let mut data = departments
+    let mut data: Vec<_> = departments
         .into_iter()
         .filter_map(|x| x.ok())
         .map(|x| x.centres_disponibles)
@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
         .filter(|c| c.has_chronodose() && c.has_vaccine("pfizer"))
         .filter_map(|x| x.info(lat, long))
         .filter(|x| x.distance < 20.)
-        .collect::<Vec<_>>();
+        .collect();
 
     data.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal));
 

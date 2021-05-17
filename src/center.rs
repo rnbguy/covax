@@ -37,7 +37,7 @@ mod my_date_format {
     where
         D: Deserializer<'de>,
     {
-        let s: Option<String> = Option::deserialize(deserializer)?;
+        let s = Option::<String>::deserialize(deserializer)?;
         s.map(|s| {
             DateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S%.f%:z")
                 .or_else(|_| DateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S%.f%z"))
