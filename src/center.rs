@@ -102,7 +102,7 @@ pub struct CenterInfo {
     #[table(title = "Km")]
     pub distance: f64,
     #[table(title = "Slots")]
-    n_slot: usize,
+    pub n_slot: usize,
     #[table(title = "Next RDV")]
     date: String,
     #[table(title = "Address")]
@@ -127,30 +127,47 @@ impl Center {
             == Some(true)
     }
 
-    pub fn info(&self, latitude: f64, longitude: f64) -> Option<CenterInfo> {
-        self.location.as_ref().map(|location| {
-            let distance = crate::util::lat_long_to_km(
-                latitude,
-                longitude,
-                location.latitude,
-                location.longitude,
-            );
-            CenterInfo {
+    pub async fn info(
+        self,
+        latitude: f64,
+        longitude: f64,
+        distance_limit: f64,
+    ) -> anyhow::Result<CenterInfo> {
+        let distance = self
+            .location
+            .as_ref()
+            .map(|location| {
+                crate::util::lat_long_to_km(
+                    latitude,
+                    longitude,
+                    location.latitude,
+                    location.longitude,
+                )
+            })
+            .unwrap_or(f64::MAX);
+
+        if distance <= distance_limit {
+            Ok(CenterInfo {
                 distance: (distance * 100.).round() / 100.,
-                n_slot: self
-                    .appointment_schedules
-                    .as_ref()
-                    .and_then(|x| x.iter().find(|x| x.name == "chronodose"))
-                    .map(|x| x.total)
-                    .unwrap_or_default(),
+                n_slot: if self.url.contains("doctolib") {
+                    crate::service::doctolib::process_doctolib_center(&self.url, 0).await?
+                } else {
+                    self.appointment_schedules
+                        .as_ref()
+                        .and_then(|x| x.iter().find(|x| x.name == "chronodose"))
+                        .map(|x| x.total)
+                        .unwrap_or_default()
+                },
                 date: self
                     .prochain_rdv
                     .map(|x| x.to_rfc2822())
                     .unwrap_or_default(),
                 address: self.metadata.address.to_owned(),
                 url: self.url.to_owned(),
-            }
-        })
+            })
+        } else {
+            Err(anyhow::Error::msg("distance filter"))
+        }
     }
 }
 

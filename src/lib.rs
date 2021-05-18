@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod center;
 pub mod commune;
+pub mod service;
 pub mod util;
 
 #[derive(Debug, Serialize, Deserialize)]
